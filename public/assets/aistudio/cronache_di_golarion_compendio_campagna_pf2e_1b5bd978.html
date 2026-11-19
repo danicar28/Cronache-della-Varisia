@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cronache di Golarion - Compendio Campagna PF2E</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Google: Cinzel per titoli fantasy e Inter per leggibilità -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome per icone -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Firebase SDK Compat (compatibile anche con apertura diretta da file://) -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        fantasy: ['Cinzel', 'serif'],
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        pfRed: {
+                            800: '#5e0b15',
+                            900: '#3d070e',
+                        },
+                        pfGold: {
+                            400: '#eab308',
+                            500: '#d4af37',
+                            600: '#b48a1e',
+                        },
+                        parchment: {
+                            900: '#141210',
+                            800: '#1e1b18',
+                            700: '#2a2521',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #141210;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3f3832;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #d4af37;
+        }
+        .tab-active {
+            border-bottom: 2px solid #d4af37;
+            color: #d4af37;
+            background-color: rgba(212, 175, 55, 0.08);
+        }
+        .no-scrollbar {
+            scrollbar-width: none;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-parchment-900 text-stone-200 font-sans min-h-screen flex flex-col selection:bg-pfGold-500 selection:text-stone-950">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-pfRed-900 via-parchment-800 to-parchment-900 border-b border-pfGold-600/30 shadow-lg sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-pfGold-500/10 border border-pfGold-500/40 flex items-center justify-center text-pfGold-500 text-xl shadow-inner">
+                    <i class="fa-solid fa-dice-d20"></i>
+                </div>
+                <div>
+                    <h1 class="font-fantasy text-xl sm:text-2xl font-bold text-pfGold-500 tracking-wide">Cronache di Golarion</h1>
+                    <p class="text-xs text-stone-400">Archivio Intelligente &amp; Bardo AI per Pathfinder 2E</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <span id="doc-status" class="text-xs px-3 py-1.5 rounded-full bg-stone-800 border border-stone-700 text-stone-400 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-400" id="status-dot"></span>
+                    <span id="status-text" class="text-amber-300">Inizializzazione...</span>
+                </span>
+                <button onclick="openSettingsModal()" title="Configura Cloud e AI per GitHub/PC" class="px-3 py-2 bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 text-sm rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-gear text-pfGold-500"></i>
+                    <span class="hidden md:inline">Cloud &amp; AI</span>
+                </button>
+                <button onclick="openImportModal()" class="px-4 py-2 bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 font-semibold text-sm rounded-xl transition shadow-md flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Carica Diario</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto no-scrollbar border-t border-stone-800/80">
+            <button onclick="switchTab('bardo')" id="tab-bardo" class="tab-btn tab-active px-5 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition cursor-pointer">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Chiedi al Bardo AI
+            </button>
+            <button onclick="switchTab('diario')" id="tab-diario" class="tab-btn text-stone-400 hover:text-stone-200 px-5 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition cursor-pointer">
+                <i class="fa-solid fa-book-open"></i> Diario <span id="badge-diario" class="ml-1 text-xs bg-stone-800 px-2 py-0.5 rounded-full">0</span>
+            </button>
+            <button onclick="switchTab('png')" id="tab-png" class="tab-btn text-stone-400 hover:text-stone-200 px-5 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition cursor-pointer">
+                <i class="fa-solid fa-users"></i> PNG &amp; Fazioni <span id="badge-png" class="ml-1 text-xs bg-stone-800 px-2 py-0.5 rounded-full">0</span>
+            </button>
+            <button onclick="switchTab('luoghi')" id="tab-luoghi" class="tab-btn text-stone-400 hover:text-stone-200 px-5 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition cursor-pointer">
+                <i class="fa-solid fa-map-location-dot"></i> Luoghi <span id="badge-luoghi" class="ml-1 text-xs bg-stone-800 px-2 py-0.5 rounded-full">0</span>
+            </button>
+            <button onclick="switchTab('missioni')" id="tab-missioni" class="tab-btn text-stone-400 hover:text-stone-200 px-5 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition cursor-pointer">
+                <i class="fa-solid fa-scroll"></i> Missioni <span id="badge-missioni" class="ml-1 text-xs bg-stone-800 px-2 py-0.5 rounded-full">0</span>
+            </button>
+            <button onclick="switchTab('bottino')" id="tab-bottino" class="tab-btn text-stone-400 hover:text-stone-200 px-5 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition cursor-pointer">
+                <i class="fa-solid fa-coins"></i> Tesori &amp; Oggetti <span id="badge-bottino" class="ml-1 text-xs bg-stone-800 px-2 py-0.5 rounded-full">0</span>
+            </button>
+            <button onclick="switchTab('timeline')" id="tab-timeline" class="tab-btn text-stone-400 hover:text-stone-200 px-5 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition cursor-pointer">
+                <i class="fa-solid fa-timeline"></i> Timeline <span id="badge-timeline" class="ml-1 text-xs bg-stone-800 px-2 py-0.5 rounded-full">0</span>
+            </button>
+            <button onclick="switchTab('gruppo')" id="tab-gruppo" class="tab-btn text-stone-400 hover:text-stone-200 px-5 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition cursor-pointer">
+                <i class="fa-solid fa-sack-dollar"></i> Gruppo <span id="badge-gruppo" class="ml-1 text-xs bg-stone-800 px-2 py-0.5 rounded-full">0</span>
+            </button>
+            <button onclick="switchTab('galleria')" id="tab-galleria" class="tab-btn text-stone-400 hover:text-stone-200 px-5 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition cursor-pointer">
+                <i class="fa-solid fa-images"></i> Galleria &amp; Mappe <span id="badge-galleria" class="ml-1 text-xs bg-stone-800 px-2 py-0.5 rounded-full">0</span>
+            </button>
+        </nav>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
+
+        <!-- Banner Avviso / Notifica personalizzata -->
+        <div id="toast-box" class="hidden mb-4 p-4 rounded-xl border flex items-center justify-between gap-4 transition-all">
+            <div class="flex items-center gap-3">
+                <i id="toast-icon" class="fa-solid fa-circle-info text-lg"></i>
+                <p id="toast-message" class="text-sm"></p>
+            </div>
+            <button onclick="hideToast()" class="text-stone-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <!-- SEZIONE 1: BARDO AI (Chat & Riassunto) -->
+        <section id="view-bardo" class="view-section flex-1 flex flex-col lg:flex-row gap-6">
+            <!-- Colonna Chat -->
+            <div class="flex-1 bg-parchment-800 border border-stone-800 rounded-2xl flex flex-col overflow-hidden shadow-xl min-h-[500px]">
+                <div class="p-4 bg-parchment-700/50 border-b border-stone-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-book-open-reader text-pfGold-500"></i>
+                        <h2 class="font-fantasy font-semibold text-stone-100">Interroga le Cronache</h2>
+                    </div>
+                    <button onclick="clearChat()" class="text-xs text-stone-400 hover:text-stone-200 flex items-center gap-1 cursor-pointer">
+                        <i class="fa-solid fa-rotate-right"></i> Pulisci chat
+                    </button>
+                </div>
+
+                <!-- Messaggi Chat -->
+                <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-4">
+                    <div class="flex gap-3">
+                        <div class="w-8 h-8 rounded-full bg-pfGold-500/20 border border-pfGold-500/40 flex items-center justify-center text-pfGold-500 shrink-0">
+                            <i class="fa-solid fa-hat-wizard text-sm"></i>
+                        </div>
+                        <div class="bg-parchment-700 border border-stone-700/60 rounded-2xl rounded-tl-none p-4 text-sm text-stone-200 max-w-2xl leading-relaxed">
+                            <p class="font-semibold text-pfGold-400 mb-1">Salute, avventuriero!</p>
+                            <p>Carica il testo del tuo Google Doc cliccando su <strong>"Carica Diario"</strong> in alto a destra. Una volta fatto, potrò rispondere a qualsiasi domanda sulla vostra campagna di Pathfinder 2E, ricordarti nomi di PNG, indizi dimenticati e catalogare tutto in automatico!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Suggerimenti Rapidi -->
+                <div class="px-4 py-2 bg-parchment-900/50 border-t border-stone-800/80 flex gap-2 overflow-x-auto no-scrollbar">
+                    <button onclick="askQuickQuestion('Fai un epico recap in stile Nelle puntate precedenti basato sull\'ultima sessione nel diario.')" class="text-xs bg-stone-800 hover:bg-stone-700 text-stone-300 px-3 py-1.5 rounded-lg border border-stone-700 whitespace-nowrap transition cursor-pointer">
+                        📜 Recap ultima sessione
+                    </button>
+                    <button onclick="askQuickQuestion('Quali sono i misteri o gli indizi ancora irrisolti che abbiamo trovato finora?')" class="text-xs bg-stone-800 hover:bg-stone-700 text-stone-300 px-3 py-1.5 rounded-lg border border-stone-700 whitespace-nowrap transition cursor-pointer">
+                        🔍 Indizi irrisolti
+                    </button>
+                    <button onclick="askQuickQuestion('Chi sono i nostri principali nemici o antagonisti emersi finora?')" class="text-xs bg-stone-800 hover:bg-stone-700 text-stone-300 px-3 py-1.5 rounded-lg border border-stone-700 whitespace-nowrap transition cursor-pointer">
+                        ⚔️ Nemici principali
+                    </button>
+                </div>
+
+                <!-- Input Chat -->
+                <form onsubmit="handleChatSubmit(event)" class="p-3 bg-parchment-700/40 border-t border-stone-800 flex gap-2">
+                    <input type="text" id="chat-input" placeholder="Chiedi qualcosa sulla campagna (es. Chi era il fabbro di Otari?)..." class="flex-1 bg-parchment-900 border border-stone-700 rounded-xl px-4 py-2.5 text-sm text-stone-100 placeholder-stone-500 focus:outline-none focus:border-pfGold-500">
+                    <button type="submit" id="chat-send-btn" class="px-4 py-2.5 bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 font-semibold rounded-xl transition flex items-center gap-2 cursor-pointer disabled:opacity-50">
+                        <span>Chiedi</span>
+                        <i class="fa-solid fa-paper-plane text-xs"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Colonna Azioni & Stato -->
+            <div class="w-full lg:w-80 flex flex-col gap-4">
+                <div class="bg-parchment-800 border border-stone-800 rounded-2xl p-5 shadow-lg">
+                    <h3 class="font-fantasy font-bold text-pfGold-500 text-base mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-wand-sparkles"></i> Estrazione Wiki AI
+                    </h3>
+                    <p class="text-xs text-stone-400 mb-4 leading-relaxed">
+                        Analizza l'intero testo del diario per estrarre e aggiornare automaticamente le schede di PNG, Luoghi, Missioni e Tesori.
+                    </p>
+                    <button onclick="extractCampaignData()" id="extract-btn" class="w-full py-2.5 px-4 bg-pfRed-800 hover:bg-pfRed-900 border border-pfGold-500/40 text-pfGold-400 font-semibold text-sm rounded-xl transition flex items-center justify-center gap-2 shadow cursor-pointer disabled:opacity-50">
+                        <i class="fa-solid fa-gears"></i>
+                        <span>Genera / Aggiorna Wiki</span>
+                    </button>
+                    <div id="extract-loader" class="hidden mt-3 text-center">
+                        <div class="inline-block animate-spin rounded-full h-5 w-5 border-2 border-pfGold-500 border-t-transparent"></div>
+                        <p class="text-xs text-pfGold-400 mt-1">Il Bardo sta leggendo le pergamene...</p>
+                    </div>
+                </div>
+
+                <div class="bg-parchment-800 border border-stone-800 rounded-2xl p-5 shadow-lg flex-1">
+                    <h3 class="font-fantasy font-bold text-stone-200 text-sm mb-3">Statistiche Diario</h3>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between items-center p-2.5 rounded-xl bg-parchment-900/60 border border-stone-800">
+                            <span class="text-stone-400">Parole totali</span>
+                            <span id="stat-words" class="font-mono font-semibold text-stone-200">0</span>
+                        </div>
+                        <div class="flex justify-between items-center p-2.5 rounded-xl bg-parchment-900/60 border border-stone-800">
+                            <span class="text-stone-400">Immagini salvate</span>
+                            <span id="stat-images" class="font-mono font-semibold text-stone-200">0</span>
+                        </div>
+                        <div class="flex justify-between items-center p-2.5 rounded-xl bg-parchment-900/60 border border-stone-800">
+                            <span class="text-stone-400">Modalità Database</span>
+                            <span id="stat-sync-mode" class="text-xs font-semibold text-amber-400 flex items-center gap-1"><i class="fa-solid fa-laptop"></i> Locale (solo questo PC)</span>
+                        </div>
+                        <div class="pt-2 flex flex-col gap-2">
+                            <button onclick="openEditTextModal()" class="w-full py-2 px-3 bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs rounded-xl border border-stone-700 transition cursor-pointer flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-pen-to-square"></i> Modifica Testo Diario
+                            </button>
+                            <button onclick="loadDemoCampaign()" class="w-full py-2 px-3 bg-stone-900 hover:bg-stone-800 text-stone-400 text-xs rounded-xl border border-stone-800 transition cursor-pointer">
+                                Carica Campagna di Esempio (PF2E)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEZIONE: DIARIO -->
+        <section id="view-diario" class="view-section hidden space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h2 class="font-fantasy text-xl font-bold text-pfGold-500">Diario delle Sessioni</h2>
+                    <p class="text-xs text-stone-400">Una voce per sessione, ricavata dai titoli «Sessione N» del testo importato.</p>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <input id="diario-search" type="text" oninput="renderDiario()" placeholder="Cerca nel diario e nelle schede..." class="flex-1 sm:w-56 bg-parchment-800 border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-stone-200 focus:outline-none focus:border-pfGold-500">
+                    <button onclick="openEditTextModal()" class="px-3.5 py-2 bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 font-semibold text-sm rounded-xl transition flex items-center gap-1.5 shrink-0 cursor-pointer"><i class="fa-solid fa-pen"></i> Modifica testo</button>
+                </div>
+            </div>
+            <div id="diario-results"></div>
+            <div id="diario-list" class="space-y-3"></div>
+        </section>
+
+        <!-- SEZIONE 2: PNG & FAZIONI -->
+        <section id="view-png" class="view-section hidden space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h2 class="font-fantasy text-xl font-bold text-pfGold-500">Personaggi Non Giocanti &amp; Fazioni</h2>
+                    <p class="text-xs text-stone-400">Tutti i volti incontrati lungo il cammino. Clicca su una scheda per modificarla.</p>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <input type="text" onkeyup="filterCards('png-grid', this.value)" placeholder="Cerca PNG..." class="flex-1 sm:w-56 bg-parchment-800 border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-stone-200 focus:outline-none focus:border-pfGold-500">
+                    <button onclick="openItemModal('npcs')" class="px-3.5 py-2 bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 font-semibold text-sm rounded-xl transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+                        <i class="fa-solid fa-plus"></i> Nuovo
+                    </button>
+                </div>
+            </div>
+            <div id="png-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </section>
+
+        <!-- SEZIONE 3: LUOGHI -->
+        <section id="view-luoghi" class="view-section hidden space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h2 class="font-fantasy text-xl font-bold text-pfGold-500">Atlante dei Luoghi</h2>
+                    <p class="text-xs text-stone-400">Città, rovine, taverne e regioni esplorate.</p>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <input type="text" onkeyup="filterCards('luoghi-grid', this.value)" placeholder="Cerca luogo..." class="flex-1 sm:w-56 bg-parchment-800 border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-stone-200 focus:outline-none focus:border-pfGold-500">
+                    <button onclick="openItemModal('locations')" class="px-3.5 py-2 bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 font-semibold text-sm rounded-xl transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+                        <i class="fa-solid fa-plus"></i> Nuovo
+                    </button>
+                </div>
+            </div>
+            <div id="luoghi-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </section>
+
+        <!-- SEZIONE 4: MISSIONI -->
+        <section id="view-missioni" class="view-section hidden space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h2 class="font-fantasy text-xl font-bold text-pfGold-500">Diario delle Missioni</h2>
+                    <p class="text-xs text-stone-400">Incarichi attivi, obiettivi principali e missioni completate.</p>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <input type="text" onkeyup="filterCards('missioni-grid', this.value)" placeholder="Cerca missione..." class="flex-1 sm:w-56 bg-parchment-800 border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-stone-200 focus:outline-none focus:border-pfGold-500">
+                    <button onclick="openItemModal('quests')" class="px-3.5 py-2 bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 font-semibold text-sm rounded-xl transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+                        <i class="fa-solid fa-plus"></i> Nuova
+                    </button>
+                </div>
+            </div>
+            <div id="missioni-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </section>
+
+        <!-- SEZIONE 5: TESORI & BOTTINO -->
+        <section id="view-bottino" class="view-section hidden space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h2 class="font-fantasy text-xl font-bold text-pfGold-500">Tesori, Oggetti Magici &amp; Indizi</h2>
+                    <p class="text-xs text-stone-400">Equipaggiamento notevole e artefatti rinvenuti nelle sessioni.</p>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <input type="text" onkeyup="filterCards('bottino-grid', this.value)" placeholder="Cerca oggetto..." class="flex-1 sm:w-56 bg-parchment-800 border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-stone-200 focus:outline-none focus:border-pfGold-500">
+                    <button onclick="openItemModal('loot')" class="px-3.5 py-2 bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 font-semibold text-sm rounded-xl transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+                        <i class="fa-solid fa-plus"></i> Nuovo
+                    </button>
+                </div>
+            </div>
+            <div id="bottino-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </section>
+
+        <!-- SEZIONE: TIMELINE -->
+        <section id="view-timeline" class="view-section hidden space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h2 class="font-fantasy text-xl font-bold text-pfGold-500">Timeline</h2>
+                    <p class="text-xs text-stone-400">Gli eventi in ordine cronologico. Il numero d'ordine decide la posizione.</p>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <input type="text" onkeyup="filterCards('timeline-grid', this.value)" placeholder="Cerca..." class="flex-1 sm:w-56 bg-parchment-800 border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-stone-200 focus:outline-none focus:border-pfGold-500">
+                    <button onclick="openItemModal('timeline')" class="px-3.5 py-2 bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 font-semibold text-sm rounded-xl transition flex items-center gap-1.5 shrink-0 cursor-pointer"><i class="fa-solid fa-plus"></i> Nuovo</button>
+                </div>
+            </div>
+            <div id="timeline-grid" class="space-y-3 max-w-3xl"></div>
+        </section>
+
+        <!-- SEZIONE: GRUPPO -->
+        <section id="view-gruppo" class="view-section hidden space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h2 class="font-fantasy text-xl font-bold text-pfGold-500">Gruppo: oro, debiti, favori e relazioni</h2>
+                    <p class="text-xs text-stone-400">Quello che il party deve, possiede o si deve guadagnare.</p>
+                </div>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <input type="text" onkeyup="filterCards('gruppo-grid', this.value)" placeholder="Cerca..." class="flex-1 sm:w-56 bg-parchment-800 border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-stone-200 focus:outline-none focus:border-pfGold-500">
+                    <button onclick="openItemModal('party')" class="px-3.5 py-2 bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 font-semibold text-sm rounded-xl transition flex items-center gap-1.5 shrink-0 cursor-pointer"><i class="fa-solid fa-plus"></i> Nuovo</button>
+                </div>
+            </div>
+            <div id="gruppo-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </section>
+
+        <!-- SEZIONE 6: GALLERIA & MAPPE -->
+        <section id="view-galleria" class="view-section hidden space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h2 class="font-fantasy text-xl font-bold text-pfGold-500">Galleria Immagini &amp; Mappe</h2>
+                    <p class="text-xs text-stone-400">Immagini importate dal Google Doc o caricate dal party.</p>
+                </div>
+                <label class="px-4 py-2 bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 font-semibold text-sm rounded-xl transition flex items-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-upload"></i> Carica Immagine
+                    <input type="file" accept="image/*" multiple onchange="handleManualImageUpload(event)" class="hidden">
+                </label>
+            </div>
+            <div id="galleria-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </section>
+
+    </main>
+
+    <!-- MODALE IMPORTAZIONE GOOGLE DOCS -->
+    <div id="import-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-parchment-800 border border-pfGold-600/40 rounded-2xl max-w-2xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between pb-4 border-b border-stone-700">
+                <h3 class="font-fantasy text-xl font-bold text-pfGold-500 flex items-center gap-2">
+                    <i class="fa-brands fa-google-drive"></i> Importa Testo e Immagini da Google Docs
+                </h3>
+                <button onclick="closeImportModal()" class="text-stone-400 hover:text-white text-lg cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="py-4 space-y-4 overflow-y-auto flex-1">
+                <div class="bg-parchment-900/80 border border-stone-700/80 rounded-xl p-3.5 text-xs text-stone-300 space-y-1.5">
+                    <p class="font-semibold text-pfGold-400"><i class="fa-solid fa-image mr-1"></i> Come importare sia il testo che le immagini:</p>
+                    <p>1. Apri il tuo documento su Google Docs.</p>
+                    <p>2. Premi <kbd class="px-1.5 py-0.5 bg-stone-800 rounded border border-stone-600">Ctrl + A</kbd> e poi <kbd class="px-1.5 py-0.5 bg-stone-800 rounded border border-stone-600">Ctrl + C</kbd>.</p>
+                    <p>3. Clicca nel riquadro qui sotto e premi <kbd class="px-1.5 py-0.5 bg-stone-800 rounded border border-stone-600">Ctrl + V</kbd>: <strong>verranno estratti sia il testo che le immagini!</strong></p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-stone-400 mb-1.5">Incolla qui il contenuto del Google Doc (Testo + Immagini):</label>
+                    <div id="rich-paste-area" contenteditable="true" onpaste="handleRichPaste(event)" class="w-full min-h-[200px] max-h-[300px] overflow-y-auto bg-parchment-900 border border-stone-700 rounded-xl p-3.5 text-sm text-stone-200 focus:outline-none focus:border-pfGold-500 empty:before:content-['Clicca_qui_e_premi_Ctrl+V_per_incollare_tutto_il_Google_Doc...'] empty:before:text-stone-600"></div>
+                </div>
+
+                <div id="paste-preview-bar" class="hidden flex items-center justify-between bg-emerald-950/60 border border-emerald-800/60 rounded-xl px-3.5 py-2 text-xs text-emerald-300">
+                    <span id="paste-stats-text">Pronto per l'importazione</span>
+                    <button onclick="clearPasteArea()" class="text-emerald-400 hover:underline cursor-pointer">Svuota</button>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-stone-700 flex flex-col sm:flex-row justify-end gap-3">
+                <button onclick="closeImportModal()" class="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium transition cursor-pointer">
+                    Annulla
+                </button>
+                <button onclick="processAndSaveImport(false)" class="px-4 py-2 rounded-xl bg-stone-700 hover:bg-stone-600 text-stone-100 text-sm font-semibold transition cursor-pointer">
+                    Salva Solo nel Database
+                </button>
+                <button onclick="processAndSaveImport(true)" class="px-5 py-2 rounded-xl bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 text-sm font-bold transition shadow-lg flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>Salva e Analizza con AI</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALE MODIFICA / AGGIUNGI SCHEDA -->
+    <div id="item-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-parchment-800 border border-pfGold-600/40 rounded-2xl max-w-lg w-full p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between pb-3 border-b border-stone-700">
+                <h3 id="item-modal-title" class="font-fantasy text-lg font-bold text-pfGold-500">Modifica Elemento</h3>
+                <button onclick="closeItemModal()" class="text-stone-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="item-form" onsubmit="saveItemForm(event)" class="py-4 space-y-3.5 overflow-y-auto flex-1">
+                <input type="hidden" id="item-type">
+                <input type="hidden" id="item-id">
+                
+                <div>
+                    <label id="label-field-1" class="block text-xs font-medium text-stone-400 mb-1">Nome / Titolo</label>
+                    <input type="text" id="field-1" required class="w-full bg-parchment-900 border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-stone-100 focus:outline-none focus:border-pfGold-500">
+                </div>
+
+                <div id="wrapper-field-2">
+                    <label id="label-field-2" class="block text-xs font-medium text-stone-400 mb-1">Ruolo / Categoria</label>
+                    <input type="text" id="field-2" class="w-full bg-parchment-900 border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-stone-100 focus:outline-none focus:border-pfGold-500">
+                </div>
+
+                <div id="wrapper-field-5" class="hidden">
+                    <label class="block text-xs font-medium text-stone-400 mb-1">Ordine nella timeline (1, 2, 3…)</label>
+                    <input type="number" id="field-5" class="w-full bg-parchment-900 border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-stone-100 focus:outline-none focus:border-pfGold-500">
+                </div>
+
+                <div id="wrapper-field-3" class="hidden">
+                    <label id="label-field-3" class="block text-xs font-medium text-stone-400 mb-1">Stato / Disposizione</label>
+                    <select id="field-3" class="w-full bg-parchment-900 border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-stone-100 focus:outline-none focus:border-pfGold-500">
+                    </select>
+                </div>
+
+                <div>
+                    <label id="label-field-4" class="block text-xs font-medium text-stone-400 mb-1">Descrizione / Note</label>
+                    <textarea id="field-4" rows="4" required class="w-full bg-parchment-900 border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-stone-100 focus:outline-none focus:border-pfGold-500"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-stone-400 mb-1">Immagine Scheda (opzionale):</label>
+                    <div class="flex items-center gap-3">
+                        <label class="px-3 py-1.5 bg-stone-700 hover:bg-stone-600 text-stone-200 text-xs rounded-lg cursor-pointer transition">
+                            <i class="fa-solid fa-image mr-1"></i> Scegli file
+                            <input type="file" accept="image/*" onchange="handleCardImageSelect(event)" class="hidden">
+                        </label>
+                        <button type="button" id="remove-card-img-btn" onclick="clearCardImage()" class="hidden text-xs text-red-400 hover:underline cursor-pointer">Rimuovi immagine</button>
+                    </div>
+                    <img id="card-image-preview" class="hidden mt-2 max-h-32 rounded-lg border border-stone-700 object-cover">
+                </div>
+
+                <div class="pt-3 border-t border-stone-700 flex justify-between items-center">
+                    <button type="button" id="delete-item-btn" onclick="deleteCurrentItem()" class="hidden px-3.5 py-2 rounded-xl bg-red-950 hover:bg-red-900 text-red-300 border border-red-800 text-xs font-semibold transition cursor-pointer">
+                        <i class="fa-solid fa-trash mr-1"></i> Elimina
+                    </button>
+                    <div class="flex gap-2 ml-auto">
+                        <button type="button" onclick="closeItemModal()" class="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm cursor-pointer">Annulla</button>
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 text-sm font-bold cursor-pointer">Salva</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODALE MODIFICA TESTO DIARIO GREZZO -->
+    <div id="edit-text-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-parchment-800 border border-pfGold-600/40 rounded-2xl max-w-3xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between pb-3 border-b border-stone-700">
+                <h3 class="font-fantasy text-lg font-bold text-pfGold-500">Modifica Testo del Diario</h3>
+                <button onclick="document.getElementById('edit-text-modal').classList.add('hidden')" class="text-stone-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="py-4 flex-1 flex flex-col">
+                <textarea id="raw-diary-editor" rows="14" class="w-full flex-1 bg-parchment-900 border border-stone-700 rounded-xl p-3.5 text-sm text-stone-200 focus:outline-none focus:border-pfGold-500"></textarea>
+            </div>
+            <div class="pt-3 border-t border-stone-700 flex justify-end gap-2">
+                <button onclick="document.getElementById('edit-text-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl bg-stone-800 text-stone-300 text-sm cursor-pointer">Annulla</button>
+                <button onclick="saveRawDiaryEdit()" class="px-5 py-2 rounded-xl bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 text-sm font-bold cursor-pointer">Salva Modifiche</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIGHTBOX IMMAGINE A SCHERMO INTERO -->
+    <div id="lightbox-modal" onclick="this.classList.add('hidden')" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-4 cursor-zoom-out">
+        <img id="lightbox-img" class="max-w-full max-h-[90vh] rounded-xl shadow-2xl border border-stone-700">
+    </div>
+
+    <!-- MODALE IMPOSTAZIONI CLOUD & AI -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-parchment-800 border border-pfGold-600/40 rounded-2xl max-w-2xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between pb-3 border-b border-stone-700">
+                <h3 class="font-fantasy text-lg font-bold text-pfGold-500 flex items-center gap-2">
+                    <i class="fa-solid fa-cloud"></i> Configurazione Cloud Condiviso &amp; AI (GitHub / PC)
+                </h3>
+                <button onclick="document.getElementById('settings-modal').classList.add('hidden')" class="text-stone-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="py-4 space-y-4 overflow-y-auto flex-1 text-xs text-stone-300">
+                <div class="bg-parchment-900/80 border border-stone-700 rounded-xl p-3.5 space-y-1.5">
+                    <p class="font-semibold text-pfGold-400">Come collegare un database condiviso gratuito su GitHub Pages:</p>
+                    <p>1. <strong>Chiave Gemini AI:</strong> Vai su <a href="https://aistudio.google.com/apikey" target="_blank" class="text-pfGold-400 underline">Google AI Studio</a>, crea una API Key gratuita e incollala qui sotto.</p>
+                    <p>2. <strong>Database Condiviso (Firebase):</strong> Crea un progetto gratuito su <a href="https://console.firebase.google.com/" target="_blank" class="text-pfGold-400 underline">Firebase Console</a>, attiva <em>Authentication (Anonima)</em> e <em>Firestore Database</em>, registra una Web App e incolla l'oggetto <code>firebaseConfig</code> JSON qui sotto.</p>
+                    <p class="text-amber-300 pt-1"><i class="fa-solid fa-circle-info mr-1"></i> Nota: se apri il file direttamente dal PC (<code>file://</code>), Firebase blocca per sicurezza l'autenticazione e l'app usa automaticamente la modalità Locale. Su GitHub Pages (<code>https://</code>) si connetterà al Cloud.</p>
+                </div>
+
+                <div>
+                    <label class="block font-medium text-stone-300 mb-1">Gemini API Key (per il Bardo AI e l'estrazione Wiki):</label>
+                    <input type="password" id="cfg-gemini-key" placeholder="AIzaSy..." class="w-full bg-parchment-900 border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-stone-100 focus:outline-none focus:border-pfGold-500">
+                </div>
+
+                <div>
+                    <label class="block font-medium text-stone-300 mb-1">Configurazione Firebase JSON (per database condiviso in tempo reale):</label>
+                    <textarea id="cfg-firebase-json" rows="6" placeholder='{"apiKey": "...", "authDomain": "...", "projectId": "...", "storageBucket": "...", "messagingSenderId": "...", "appId": "..."}' class="w-full font-mono bg-parchment-900 border border-stone-700 rounded-xl p-3 text-xs text-stone-200 focus:outline-none focus:border-pfGold-500"></textarea>
+                </div>
+
+                <div class="bg-stone-900/70 border border-stone-800 rounded-xl p-3">
+                    <p class="text-stone-400 mb-1.5">Vuoi esportare una copia del file HTML con queste chiavi già salvate dentro (così i tuoi compagni su GitHub non dovranno inserirle)?</p>
+                    <button type="button" onclick="downloadConfiguredHtml()" class="px-3.5 py-2 bg-stone-800 hover:bg-stone-700 text-pfGold-400 border border-pfGold-500/30 rounded-lg font-semibold transition cursor-pointer">
+                        <i class="fa-solid fa-download mr-1"></i> Scarica HTML Pre-Configurato per GitHub
+                    </button>
+                </div>
+            </div>
+            <div class="pt-3 border-t border-stone-700 flex justify-end gap-2">
+                <button onclick="document.getElementById('settings-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl bg-stone-800 text-stone-300 text-sm cursor-pointer">Chiudi</button>
+                <button onclick="saveCloudSettings()" class="px-5 py-2 rounded-xl bg-pfGold-600 hover:bg-pfGold-500 text-stone-950 text-sm font-bold cursor-pointer">Salva e Connetti</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // 1. CONFIGURAZIONE FIREBASE INTEGRATA (PROGETTO: on-heirlooms-and-legacies)
+        // =========================================================================
+        const EMBEDDED_CONFIG = {
+            geminiApiKey: "INCOLLA_QUI_LA_TUA_GEMINI_API_KEY", 
+            firebaseConfig: {
+                apiKey: "AIzaSyDPtms9gtzdZUhrWzPSAC69CJlZWKGugqw",
+                authDomain: "on-heirlooms-and-legacies.firebaseapp.com",
+                projectId: "on-heirlooms-and-legacies",
+                storageBucket: "on-heirlooms-and-legacies.firebasestorage.app",
+                messagingSenderId: "510286667390",
+                appId: "1:510286667390:web:801f5b96547e98d59c422f"
+            }
+        };
+        // =========================================================================
+
+        let useCloud = false;
+        let auth = null;
+        let db = null;
+        let currentUser = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'cronache-golarion-pf2e';
+
+        let campaignText = "";
+        let wikiData = {
+            npcs: [],
+            locations: [],
+            quests: [],
+            loot: [],
+            images: [],
+            timeline: [],
+            party: []
+        };
+        let stagedImages = [];
+        let currentCardImage = null;
+
+        function getActiveGeminiKey() {
+            const saved = localStorage.getItem('pf2e_gemini_key');
+            if (saved && !saved.startsWith("INCOLLA_QUI")) return saved;
+            if (EMBEDDED_CONFIG.geminiApiKey && !EMBEDDED_CONFIG.geminiApiKey.startsWith("INCOLLA_QUI")) {
+                return EMBEDDED_CONFIG.geminiApiKey;
+            }
+            return "";
+        }
+
+        function getActiveFirebaseConfig() {
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                try { return JSON.parse(__firebase_config); } catch (e) {}
+            }
+            const saved = localStorage.getItem('pf2e_firebase_config');
+            if (saved) {
+                try { 
+                    const parsed = JSON.parse(saved);
+                    if (parsed && parsed.apiKey && !parsed.apiKey.startsWith("INCOLLA_QUI")) return parsed;
+                } catch (e) {}
+            }
+            if (EMBEDDED_CONFIG.firebaseConfig && 
+                EMBEDDED_CONFIG.firebaseConfig.apiKey && 
+                !EMBEDDED_CONFIG.firebaseConfig.apiKey.startsWith("INCOLLA_QUI")) {
+                return EMBEDDED_CONFIG.firebaseConfig;
+            }
+            return null;
+        }
+
+        const mainDocRef = () => db.collection('artifacts').doc(appId).collection('public').doc('data').collection('campaign_meta').doc('main');
+        const getCollectionRef = (colName) => db.collection('artifacts').doc(appId).collection('public').doc('data').collection(colName);
+
+        function saveLocalFallback() {
+            try {
+                localStorage.setItem('pf2e_local_text', campaignText);
+                localStorage.setItem('pf2e_local_wiki', JSON.stringify(wikiData));
+            } catch (e) {
+                console.warn("Spazio locale esaurito:", e);
+            }
+            renderWiki();
+            updateStats();
+        }
+
+        function loadLocalFallback() {
+            campaignText = localStorage.getItem('pf2e_local_text') || "";
+            const savedWiki = localStorage.getItem('pf2e_local_wiki');
+            if (savedWiki) {
+                try {
+                    wikiData = { npcs: [], locations: [], quests: [], loot: [], images: [], timeline: [], party: [], ...JSON.parse(savedWiki) };
+                } catch (e) {}
+            }
+            renderWiki();
+            updateStats();
+        }
+
+        async function initApp() {
+            const fbConfig = getActiveFirebaseConfig();
+            const isLocalFile = window.location.protocol === 'file:';
+
+            if (!fbConfig || !fbConfig.apiKey || isLocalFile || typeof firebase === 'undefined') {
+                useCloud = false;
+                loadLocalFallback();
+                return;
+            }
+
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(fbConfig);
+                }
+                auth = firebase.auth();
+                db = firebase.firestore();
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await auth.signInWithCustomToken(__initial_auth_token);
+                } else {
+                    await auth.signInAnonymously();
+                }
+                currentUser = auth.currentUser;
+                useCloud = true;
+                updateStats();
+                setupRealtimeListeners();
+            } catch (err) {
+                console.warn("Connessione Cloud non riuscita, passaggio a modalità locale:", err);
+                useCloud = false;
+                loadLocalFallback();
+                if (err.code === 'auth/unauthorized-domain') {
+                    showToast("Dominio non autorizzato su Firebase! Aggiungilo in Authentication -> Settings -> Domini autorizzati.", "error");
+                } else if (err.code === 'auth/operation-not-allowed') {
+                    showToast("Login Anonimo disattivato su Firebase! Attivalo in Authentication -> Sign-in method.", "error");
+                } else {
+                    showToast("Avviato in modalità Locale (" + (err.code || "Offline") + ").", "info");
+                }
+            }
+        }
+
+        function setupRealtimeListeners() {
+            if (!useCloud || !db) return;
+
+            mainDocRef().onSnapshot((snap) => {
+                if (snap.exists) {
+                    campaignText = snap.data().text || "";
+                }
+                renderDiario();
+                updateStats();
+            });
+
+            ['npcs', 'locations', 'quests', 'loot', 'images', 'timeline', 'party'].forEach(col => {
+                getCollectionRef(col).onSnapshot((snap) => {
+                    wikiData[col] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    renderWiki();
+                    updateStats();
+                });
+            });
+        }
+
+        // --- NAVIGAZIONE E UI ---
+        function switchTab(tabName) {
+            document.querySelectorAll('.view-section').forEach(sec => sec.classList.add('hidden'));
+            const target = document.getElementById('view-' + tabName);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('tab-active');
+                btn.classList.add('text-stone-400');
+            });
+            const activeBtn = document.getElementById('tab-' + tabName);
+            if (activeBtn) {
+                activeBtn.classList.add('tab-active');
+                activeBtn.classList.remove('text-stone-400');
+            }
+        }
+
+        function showToast(msg, type = 'info') {
+            const box = document.getElementById('toast-box');
+            const icon = document.getElementById('toast-icon');
+            const text = document.getElementById('toast-message');
+            box.className = 'mb-4 p-4 rounded-xl border flex items-center justify-between gap-4 transition-all ';
+            if (type === 'error') {
+                box.className += 'bg-red-950/80 border-red-800 text-red-200';
+                icon.className = 'fa-solid fa-triangle-exclamation text-lg text-red-400';
+            } else if (type === 'success') {
+                box.className += 'bg-emerald-950/80 border-emerald-800 text-emerald-200';
+                icon.className = 'fa-solid fa-circle-check text-lg text-emerald-400';
+            } else {
+                box.className += 'bg-parchment-800 border-pfGold-500/40 text-stone-200';
+                icon.className = 'fa-solid fa-circle-info text-lg text-pfGold-400';
+            }
+            text.textContent = msg;
+            box.classList.remove('hidden');
+        }
+
+        function hideToast() {
+            document.getElementById('toast-box').classList.add('hidden');
+        }
+
+        function updateStats() {
+            const words = campaignText.trim() ? campaignText.trim().split(/\s+/).length : 0;
+            document.getElementById('stat-words').textContent = words.toLocaleString('it-IT');
+            document.getElementById('stat-images').textContent = (wikiData.images || []).length;
+
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            const syncMode = document.getElementById('stat-sync-mode');
+
+            if (useCloud) {
+                statusDot.className = "w-2 h-2 rounded-full bg-emerald-400";
+                statusText.className = "text-emerald-300";
+                statusText.textContent = "Cloud Connesso";
+                syncMode.className = "text-xs font-semibold text-emerald-400 flex items-center gap-1";
+                syncMode.innerHTML = '<i class="fa-solid fa-cloud"></i> Cloud Condiviso';
+            } else {
+                statusDot.className = "w-2 h-2 rounded-full bg-amber-400";
+                statusText.className = "text-amber-300";
+                statusText.textContent = "Modalità Locale";
+                syncMode.className = "text-xs font-semibold text-amber-400 flex items-center gap-1";
+                syncMode.innerHTML = '<i class="fa-solid fa-laptop"></i> Locale (solo questo PC)';
+            }
+
+            const sessions = parseSessions(campaignText);
+            document.getElementById('badge-diario').textContent = sessions.length;
+            document.getElementById('badge-png').textContent = (wikiData.npcs || []).length;
+            document.getElementById('badge-luoghi').textContent = (wikiData.locations || []).length;
+            document.getElementById('badge-missioni').textContent = (wikiData.quests || []).length;
+            document.getElementById('badge-bottino').textContent = (wikiData.loot || []).length;
+            document.getElementById('badge-timeline').textContent = (wikiData.timeline || []).length;
+            document.getElementById('badge-gruppo').textContent = (wikiData.party || []).length;
+            document.getElementById('badge-galleria').textContent = (wikiData.images || []).length;
+        }
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // --- PARSING E RENDER DIARIO ---
+        function parseSessions(text) {
+            if (!text || !text.trim()) return [];
+            const lines = text.split(/\r?\n/);
+            const sessions = [];
+            let current = null;
+
+            for (const line of lines) {
+                const match = line.trim().match(/^(?:#+\s*)?(sessione\s+\d+.*)$/i);
+                if (match) {
+                    if (current) sessions.push(current);
+                    current = { title: match[1].trim(), content: [] };
+                } else {
+                    if (!current) current = { title: "Prologo / Note Generali", content: [] };
+                    current.content.push(line);
+                }
+            }
+            if (current) sessions.push(current);
+            return sessions.filter(s => s.title !== "Prologo / Note Generali" || s.content.join('').trim().length > 0);
+        }
+
+        function renderDiario() {
+            const listEl = document.getElementById('diario-list');
+            const resultsEl = document.getElementById('diario-results');
+            const query = (document.getElementById('diario-search')?.value || '').trim().toLowerCase();
+            const sessions = parseSessions(campaignText);
+
+            if (query) {
+                const matches = [];
+                ['npcs', 'locations', 'quests', 'loot', 'timeline', 'party'].forEach(col => {
+                    (wikiData[col] || []).forEach(item => {
+                        const hay = `${item.name || ''} ${item.role || ''} ${item.desc || ''}`.toLowerCase();
+                        if (hay.includes(query)) {
+                            matches.push({ col, item });
+                        }
+                    });
+                });
+                if (matches.length > 0) {
+                    resultsEl.innerHTML = `<div class="bg-parchment-800 border border-pfGold-500/30 rounded-xl p-3 text-xs space-y-1.5">
+                        <p class="font-semibold text-pfGold-400">Schede corrispondenti (${matches.length}):</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${matches.map(m => `<span class="px-2.5 py-1 rounded-lg bg-parchment-900 border border-stone-700 text-stone-200">${escapeHtml(m.item.name)}</span>`).join('')}
+                        </div>
+                    </div>`;
+                } else {
+                    resultsEl.innerHTML = '';
+                }
+            } else {
+                resultsEl.innerHTML = '';
+            }
+
+            if (sessions.length === 0) {
+                listEl.innerHTML = `<div class="text-center py-12 bg-parchment-800/40 border border-dashed border-stone-700 rounded-2xl text-stone-400 text-sm">Nessuna sessione nel diario. Clicca su "Carica Diario" in alto a destra per importare gli appunti!</div>`;
+                return;
+            }
+
+            const filtered = query
+                ? sessions.filter(s => s.title.toLowerCase().includes(query) || s.content.join('\n').toLowerCase().includes(query))
+                : sessions;
+
+            listEl.innerHTML = filtered.map((s) => `
+                <details class="bg-parchment-800 border border-stone-800 rounded-2xl overflow-hidden group" open>
+                    <summary class="px-5 py-3.5 bg-parchment-700/40 cursor-pointer font-fantasy font-bold text-pfGold-400 flex items-center justify-between select-none">
+                        <span>${escapeHtml(s.title)}</span>
+                        <i class="fa-solid fa-chevron-down text-xs text-stone-400 group-open:rotate-180 transition-transform"></i>
+                    </summary>
+                    <div class="p-5 text-sm text-stone-300 whitespace-pre-line leading-relaxed border-t border-stone-800/80">${escapeHtml(s.content.join('\n').trim())}</div>
+                </details>
+            `).join('');
+        }
+
+        // --- RENDER WIKI ---
+        function renderWiki() {
+            renderDiario();
+            renderCardGrid('png-grid', 'npcs', 'Nessun PNG nel database. Carica il diario o aggiungine uno!');
+            renderCardGrid('luoghi-grid', 'locations', 'Nessun luogo registrato.');
+            renderCardGrid('missioni-grid', 'quests', 'Nessuna missione trovata.');
+            renderCardGrid('bottino-grid', 'loot', 'Nessun oggetto o tesoro catalogato.');
+            renderCardGrid('gruppo-grid', 'party', 'Nessuna nota di gruppo registrata.');
+            renderTimeline();
+            renderGallery();
+        }
+
+        function renderCardGrid(gridId, colName, emptyMsg) {
+            const grid = document.getElementById(gridId);
+            const items = wikiData[colName] || [];
+            if (items.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 bg-parchment-800/40 border border-dashed border-stone-700 rounded-2xl text-stone-400 text-sm">${emptyMsg}</div>`;
+                return;
+            }
+
+            grid.innerHTML = items.map(item => `
+                <div onclick="openItemModal('${colName}', '${item.id}')" class="wiki-card bg-parchment-800 hover:bg-parchment-700/70 border border-stone-800 hover:border-pfGold-500/40 rounded-2xl p-4 transition cursor-pointer flex flex-col gap-2.5 shadow">
+                    ${item.image ? `<img src="${item.image}" class="w-full h-36 object-cover rounded-xl border border-stone-700/80">` : ''}
+                    <div class="flex items-start justify-between gap-2">
+                        <h3 class="font-fantasy font-bold text-stone-100 text-base leading-snug">${escapeHtml(item.name)}</h3>
+                        ${item.status ? `<span class="text-[11px] px-2 py-0.5 rounded-full bg-pfGold-500/15 text-pfGold-400 border border-pfGold-500/30 shrink-0">${escapeHtml(item.status)}</span>` : ''}
+                    </div>
+                    ${item.role ? `<p class="text-xs font-medium text-pfGold-500/90">${escapeHtml(item.role)}</p>` : ''}
+                    <p class="text-xs text-stone-300 leading-relaxed line-clamp-4 whitespace-pre-line">${escapeHtml(item.desc)}</p>
+                </div>
+            `).join('');
+        }
+
+        function renderTimeline() {
+            const grid = document.getElementById('timeline-grid');
+            const items = [...(wikiData.timeline || [])].sort((a, b) => (Number(a.order) || 999) - (Number(b.order) || 999));
+            if (items.length === 0) {
+                grid.innerHTML = `<div class="text-center py-12 bg-parchment-800/40 border border-dashed border-stone-700 rounded-2xl text-stone-400 text-sm">Nessun evento nella timeline.</div>`;
+                return;
+            }
+            grid.innerHTML = items.map((item, idx) => `
+                <div onclick="openItemModal('timeline', '${item.id}')" class="wiki-card relative pl-8 pb-6 border-l-2 border-pfGold-600/40 last:pb-0 cursor-pointer group">
+                    <div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-parchment-900 border-2 border-pfGold-500 group-hover:scale-125 transition"></div>
+                    <div class="bg-parchment-800 group-hover:bg-parchment-700/70 border border-stone-800 rounded-2xl p-4 transition">
+                        <div class="flex items-center justify-between gap-2 mb-1">
+                            <span class="text-xs font-mono text-pfGold-400">#${item.order || idx + 1} ${item.role ? '• ' + escapeHtml(item.role) : ''}</span>
+                        </div>
+                        <h3 class="font-fantasy font-bold text-stone-100 text-base">${escapeHtml(item.name)}</h3>
+                        <p class="text-xs text-stone-300 mt-1.5 leading-relaxed whitespace-pre-line">${escapeHtml(item.desc)}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderGallery() {
+            const grid = document.getElementById('galleria-grid');
+            const imgs = wikiData.images || [];
+            if (imgs.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 bg-parchment-800/40 border border-dashed border-stone-700 rounded-2xl text-stone-400 text-sm">Nessuna immagine in galleria. Incolla il Google Doc con immagini o caricane una!</div>`;
+                return;
+            }
+            grid.innerHTML = imgs.map(img => `
+                <div class="bg-parchment-800 border border-stone-800 rounded-2xl overflow-hidden flex flex-col group">
+                    <div class="relative h-48 overflow-hidden bg-parchment-900 cursor-zoom-in" onclick="openLightbox('${img.dataUrl}')">
+                        <img src="${img.dataUrl}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                    </div>
+                    <div class="p-3 flex items-center justify-between gap-2">
+                        <span class="text-xs text-stone-300 truncate">${escapeHtml(img.title || 'Immagine Campagna')}</span>
+                        <button onclick="deleteGalleryImage('${img.id}')" class="text-xs text-red-400 hover:text-red-300 cursor-pointer"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterCards(gridId, query) {
+            const q = query.toLowerCase().trim();
+            const grid = document.getElementById(gridId);
+            grid.querySelectorAll('.wiki-card').forEach(card => {
+                card.style.display = card.textContent.toLowerCase().includes(q) ? '' : 'none';
+            });
+        }
+
+        function openLightbox(src) {
+            document.getElementById('lightbox-img').src = src;
+            document.getElementById('lightbox-modal').classList.remove('hidden');
+        }
+
+        // --- CRUD SCHEDE ---
+        const modalConfigs = {
+            npcs: { title: 'Scheda PNG / Fazione', f1: 'Nome PNG o Fazione', f2: 'Ruolo / Titolo / Razza', f3Label: 'Disposizione', f3Opts: ['Alleato', 'Neutrale', 'Sospetto', 'Nemico', 'Sconosciuto'] },
+            locations: { title: 'Scheda Luogo', f1: 'Nome Luogo', f2: 'Regione / Tipo (es. Città, Rovine)', f3Label: 'Stato', f3Opts: ['Esplorato', 'Sicuro', 'Pericoloso', 'Da esplorare'] },
+            quests: { title: 'Scheda Missione', f1: 'Titolo Missione', f2: 'Mandante / Ricompensa', f3Label: 'Stato Missione', f3Opts: ['Attiva', 'In corso', 'Completata', 'Fallita'] },
+            loot: { title: 'Scheda Tesoro / Oggetto', f1: 'Nome Oggetto / Indizio', f2: 'Tipo / Livello / Possessore', f3Label: 'Stato', f3Opts: ['In possesso', 'Identificato', 'Da identificare', 'Venduto/Usato'] },
+            timeline: { title: 'Evento Timeline', f1: 'Titolo Evento', f2: 'Data / Sessione', f3Label: null, f3Opts: [] },
+            party: { title: 'Nota Gruppo', f1: 'Voce (es. Cassa Comune, Debito...)', f2: 'Categoria / Valore', f3Label: 'Stato', f3Opts: ['Attivo', 'Risolto', 'In sospeso'] }
+        };
+
+        function openItemModal(colName, itemId = null) {
+            const cfg = modalConfigs[colName];
+            document.getElementById('item-type').value = colName;
+            document.getElementById('item-id').value = itemId || '';
+            document.getElementById('item-modal-title').textContent = itemId ? 'Modifica ' + cfg.title : 'Nuova ' + cfg.title;
+            document.getElementById('label-field-1').textContent = cfg.f1;
+            document.getElementById('label-field-2').textContent = cfg.f2;
+
+            const w3 = document.getElementById('wrapper-field-3');
+            const f3 = document.getElementById('field-3');
+            if (cfg.f3Label) {
+                w3.classList.remove('hidden');
+                document.getElementById('label-field-3').textContent = cfg.f3Label;
+                f3.innerHTML = cfg.f3Opts.map(o => `<option value="${o}">${o}</option>`).join('');
+            } else {
+                w3.classList.add('hidden');
+            }
+
+            const w5 = document.getElementById('wrapper-field-5');
+            if (colName === 'timeline') w5.classList.remove('hidden');
+            else w5.classList.add('hidden');
+
+            const item = itemId ? (wikiData[colName] || []).find(i => i.id === itemId) : null;
+            document.getElementById('field-1').value = item ? item.name : '';
+            document.getElementById('field-2').value = item ? (item.role || '') : '';
+            if (item && item.status && cfg.f3Label) f3.value = item.status;
+            document.getElementById('field-4').value = item ? (item.desc || '') : '';
+            document.getElementById('field-5').value = item ? (item.order || '') : ((wikiData.timeline || []).length + 1);
+
+            currentCardImage = item ? (item.image || null) : null;
+            updateCardImagePreview();
+
+            const delBtn = document.getElementById('delete-item-btn');
+            if (itemId) delBtn.classList.remove('hidden');
+            else delBtn.classList.add('hidden');
+
+            document.getElementById('item-modal').classList.remove('hidden');
+        }
+
+        function closeItemModal() {
+            document.getElementById('item-modal').classList.add('hidden');
+        }
+
+        function handleCardImageSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            compressImageFile(file, 800, 0.75).then(dataUrl => {
+                currentCardImage = dataUrl;
+                updateCardImagePreview();
+            });
+        }
+
+        function clearCardImage() {
+            currentCardImage = null;
+            updateCardImagePreview();
+        }
+
+        function updateCardImagePreview() {
+            const prev = document.getElementById('card-image-preview');
+            const remBtn = document.getElementById('remove-card-img-btn');
+            if (currentCardImage) {
+                prev.src = currentCardImage;
+                prev.classList.remove('hidden');
+                remBtn.classList.remove('hidden');
+            } else {
+                prev.classList.add('hidden');
+                remBtn.classList.add('hidden');
+            }
+        }
+
+        async function saveItemForm(e) {
+            e.preventDefault();
+            const colName = document.getElementById('item-type').value;
+            const itemId = document.getElementById('item-id').value;
+            const cfg = modalConfigs[colName];
+
+            const payload = {
+                name: document.getElementById('field-1').value.trim(),
+                role: document.getElementById('field-2').value.trim(),
+                status: cfg.f3Label ? document.getElementById('field-3').value : '',
+                desc: document.getElementById('field-4').value.trim(),
+                order: colName === 'timeline' ? Number(document.getElementById('field-5').value || 1) : null,
+                image: currentCardImage || null
+            };
+
+            if (useCloud && db) {
+                if (itemId) await getCollectionRef(colName).doc(itemId).update(payload);
+                else await getCollectionRef(colName).add(payload);
+            } else {
+                if (itemId) {
+                    const idx = wikiData[colName].findIndex(i => i.id === itemId);
+                    if (idx !== -1) wikiData[colName][idx] = { id: itemId, ...payload };
+                } else {
+                    wikiData[colName].push({ id: 'loc_' + Date.now() + Math.random().toString(36).slice(2, 6), ...payload });
+                }
+                saveLocalFallback();
+            }
+            closeItemModal();
+            showToast("Scheda salvata con successo!", "success");
+        }
+
+        async function deleteCurrentItem() {
+            const colName = document.getElementById('item-type').value;
+            const itemId = document.getElementById('item-id').value;
+            if (!itemId) return;
+
+            if (useCloud && db) {
+                await getCollectionRef(colName).doc(itemId).delete();
+            } else {
+                wikiData[colName] = wikiData[colName].filter(i => i.id !== itemId);
+                saveLocalFallback();
+            }
+            closeItemModal();
+            showToast("Elemento eliminato.", "info");
+        }
+
+        // --- IMPORTAZIONE & IMMAGINI ---
+        function openImportModal() {
+            clearPasteArea();
+            document.getElementById('import-modal').classList.remove('hidden');
+        }
+
+        function closeImportModal() {
+            document.getElementById('import-modal').classList.add('hidden');
+        }
+
+        function clearPasteArea() {
+            document.getElementById('rich-paste-area').innerHTML = '';
+            stagedImages = [];
+            document.getElementById('paste-preview-bar').classList.add('hidden');
+        }
+
+        function handleRichPaste(e) {
+            setTimeout(() => {
+                const area = document.getElementById('rich-paste-area');
+                const imgs = area.querySelectorAll('img');
+                stagedImages = [];
+                imgs.forEach((img, idx) => {
+                    if (img.src && img.src.startsWith('data:image')) {
+                        stagedImages.push({ title: `Immagine Doc #${idx + 1}`, dataUrl: img.src });
+                    }
+                });
+                const textLen = area.innerText.trim().length;
+                const bar = document.getElementById('paste-preview-bar');
+                bar.classList.remove('hidden');
+                document.getElementById('paste-stats-text').textContent = `Rilevati ${textLen} caratteri e ${stagedImages.length} immagini.`;
+            }, 100);
+        }
+
+        async function processAndSaveImport(runAi) {
+            const area = document.getElementById('rich-paste-area');
+            const text = area.innerText.trim();
+            if (!text && stagedImages.length === 0) {
+                showToast("Incolla prima del testo o delle immagini nel riquadro.", "error");
+                return;
+            }
+
+            if (text) campaignText = text;
+
+            if (useCloud && db) {
+                await mainDocRef().set({ text: campaignText, updatedAt: Date.now() }, { merge: true });
+                for (const img of stagedImages) {
+                    await getCollectionRef('images').add(img);
+                }
+            } else {
+                stagedImages.forEach(img => {
+                    wikiData.images.push({ id: 'img_' + Date.now() + Math.random().toString(36).slice(2, 6), ...img });
+                });
+                saveLocalFallback();
+            }
+
+            closeImportModal();
+            showToast("Diario importato con successo!", "success");
+            if (runAi) extractCampaignData();
+        }
+
+        function compressImageFile(file, maxWidth = 1000, quality = 0.8) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const scale = Math.min(1, maxWidth / img.width);
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width * scale;
+                        canvas.height = img.height * scale;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.src = ev.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handleManualImageUpload(e) {
+            const files = Array.from(e.target.files || []);
+            for (const file of files) {
+                const dataUrl = await compressImageFile(file);
+                const payload = { title: file.name, dataUrl };
+                if (useCloud && db) await getCollectionRef('images').add(payload);
+                else wikiData.images.push({ id: 'img_' + Date.now() + Math.random().toString(36).slice(2, 6), ...payload });
+            }
+            if (!useCloud) saveLocalFallback();
+            showToast("Immagini caricate!", "success");
+        }
+
+        async function deleteGalleryImage(id) {
+            if (useCloud && db) await getCollectionRef('images').doc(id).delete();
+            else {
+                wikiData.images = wikiData.images.filter(i => i.id !== id);
+                saveLocalFallback();
+            }
+        }
+
+        function openEditTextModal() {
+            document.getElementById('raw-diary-editor').value = campaignText;
+            document.getElementById('edit-text-modal').classList.remove('hidden');
+        }
+
+        async function saveRawDiaryEdit() {
+            campaignText = document.getElementById('raw-diary-editor').value;
+            if (useCloud && db) await mainDocRef().set({ text: campaignText, updatedAt: Date.now() }, { merge: true });
+            else saveLocalFallback();
+            document.getElementById('edit-text-modal').classList.add('hidden');
+            showToast("Testo del diario aggiornato!", "success");
+        }
+
+        // --- BARDO AI & ESTRAZIONE WIKI ---
+        function appendChatMessage(sender, htmlText) {
+            const box = document.getElementById('chat-messages');
+            const isUser = sender === 'user';
+            const div = document.createElement('div');
+            div.className = 'flex gap-3 ' + (isUser ? 'justify-end' : '');
+            div.innerHTML = isUser
+                ? `<div class="bg-pfGold-600/20 border border-pfGold-500/40 rounded-2xl rounded-tr-none p-3.5 text-sm text-stone-100 max-w-xl leading-relaxed">${escapeHtml(htmlText)}</div>`
+                : `<div class="w-8 h-8 rounded-full bg-pfGold-500/20 border border-pfGold-500/40 flex items-center justify-center text-pfGold-500 shrink-0"><i class="fa-solid fa-hat-wizard text-sm"></i></div>
+                   <div class="bg-parchment-700 border border-stone-700/60 rounded-2xl rounded-tl-none p-4 text-sm text-stone-200 max-w-2xl leading-relaxed whitespace-pre-line">${htmlText}</div>`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function clearChat() {
+            document.getElementById('chat-messages').innerHTML = '';
+        }
+
+        function askQuickQuestion(q) {
+            document.getElementById('chat-input').value = q;
+            handleChatSubmit(new Event('submit'));
+        }
+
+        async function callGemini(prompt, jsonMode = false) {
+            const apiKey = getActiveGeminiKey();
+            if (!apiKey) {
+                throw new Error("Manca la Gemini API Key! Inseriscila cliccando su 'Cloud & AI' in alto a destra.");
+            }
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+            const body = {
+                contents: [{ parts: [{ text: prompt }] }],
+                ...(jsonMode ? { generationConfig: { responseMimeType: "application/json" } } : {})
+            };
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error?.message || "Errore API Gemini");
+            return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        }
+
+        async function handleChatSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const question = input.value.trim();
+            if (!question) return;
+
+            input.value = '';
+            appendChatMessage('user', question);
+
+            const btn = document.getElementById('chat-send-btn');
+            btn.disabled = true;
+            try {
+                const prompt = `Sei un Bardo saggio e narratore esperto di Pathfinder 2E. Rispondi in italiano basandoti sul seguente diario della campagna.\n\nDIARIO:\n${campaignText || "(Nessun diario caricato)"}\n\nDOMANDA:\n${question}`;
+                const reply = await callGemini(prompt, false);
+                appendChatMessage('ai', escapeHtml(reply));
+            } catch (err) {
+                showToast(err.message, "error");
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function extractCampaignData() {
+            if (!campaignText.trim()) {
+                showToast("Carica prima il testo del diario!", "error");
+                return;
+            }
+            const btn = document.getElementById('extract-btn');
+            const loader = document.getElementById('extract-loader');
+            btn.disabled = true;
+            loader.classList.remove('hidden');
+
+            try {
+                const prompt = `Analizza il seguente diario di una campagna Pathfinder 2E e restituisci un JSON valido con questa struttura esatta:
+{
+  "npcs": [{"name": "...", "role": "...", "status": "Alleato|Neutrale|Nemico|Sconosciuto", "desc": "..."}],
+  "locations": [{"name": "...", "role": "...", "status": "Esplorato|Pericoloso|Da esplorare", "desc": "..."}],
+  "quests": [{"name": "...", "role": "...", "status": "Attiva|Completata|Fallita", "desc": "..."}],
+  "loot": [{"name": "...", "role": "...", "status": "In possesso|Da identificare", "desc": "..."}],
+  "timeline": [{"name": "...", "role": "...", "order": 1, "desc": "..."}]
+}
+
+DIARIO:
+${campaignText}`;
+                const rawJson = await callGemini(prompt, true);
+                const parsed = JSON.parse(rawJson);
+
+                for (const col of ['npcs', 'locations', 'quests', 'loot', 'timeline']) {
+                    const items = Array.isArray(parsed[col]) ? parsed[col] : [];
+                    for (const item of items) {
+                        const exists = (wikiData[col] || []).some(e => e.name.toLowerCase() === (item.name || '').toLowerCase());
+                        if (!exists && item.name) {
+                            if (useCloud && db) await getCollectionRef(col).add(item);
+                            else wikiData[col].push({ id: 'ai_' + Date.now() + Math.random().toString(36).slice(2, 6), ...item });
+                        }
+                    }
+                }
+                if (!useCloud) saveLocalFallback();
+                showToast("Wiki aggiornata con successo dal Bardo AI!", "success");
+            } catch (err) {
+                showToast(err.message, "error");
+            } finally {
+                btn.disabled = false;
+                loader.classList.add('hidden');
+            }
+        }
+
+        // --- IMPOSTAZIONI CLOUD & CAMPAGNA DEMO ---
+        function openSettingsModal() {
+            document.getElementById('cfg-gemini-key').value = getActiveGeminiKey();
+            const fb = getActiveFirebaseConfig();
+            document.getElementById('cfg-firebase-json').value = fb ? JSON.stringify(fb, null, 2) : '';
+            document.getElementById('settings-modal').classList.remove('hidden');
+        }
+
+        function saveCloudSettings() {
+            const gKey = document.getElementById('cfg-gemini-key').value.trim();
+            const fbRaw = document.getElementById('cfg-firebase-json').value.trim();
+
+            if (gKey) localStorage.setItem('pf2e_gemini_key', gKey);
+            else localStorage.removeItem('pf2e_gemini_key');
+
+            if (fbRaw) {
+                try {
+                    JSON.parse(fbRaw);
+                    localStorage.setItem('pf2e_firebase_config', fbRaw);
+                } catch (e) {
+                    showToast("Il JSON di Firebase non è valido.", "error");
+                    return;
+                }
+            }
+            document.getElementById('settings-modal').classList.add('hidden');
+            showToast("Impostazioni salvate! Ricarico la connessione...", "success");
+            initApp();
+        }
+
+        function downloadConfiguredHtml() {
+            const gKey = document.getElementById('cfg-gemini-key').value.trim() || "INCOLLA_QUI_LA_TUA_GEMINI_API_KEY";
+            let fbObj = EMBEDDED_CONFIG.firebaseConfig;
+            try {
+                const raw = document.getElementById('cfg-firebase-json').value.trim();
+                if (raw) fbObj = JSON.parse(raw);
+            } catch (e) {}
+
+            let html = document.documentElement.outerHTML;
+            html = html.replace(/geminiApiKey:\s*"[^"]*"/, `geminiApiKey: ${JSON.stringify(gKey)}`);
+            const blob = new Blob(["<!DOCTYPE html>\n" + html], { type: "text/html;charset=utf-8" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "index.html";
+            a.click();
+        }
+
+        function loadDemoCampaign() {
+            campaignText = `Sessione 1 - L'arrivo a Otari\nIl gruppo si incontra alla taverna Il Pesce Spada gestita da Magiloy. Wrin Sivinxi, l'astrologa elfa, chiede aiuto per indagare su strane luci provenienti dal Faro di Gauntlight nelle paludi.\n\nSessione 2 - I sotterranei del Faro\nEsplorando le rovine di Gauntlight, gli eroi affrontano dei mitflit e trovano una chiave d'argento incisa con il simbolo di Belcorra Haruvex.`;
+            wikiData.npcs = [
+                { id: 'demo1', name: 'Wrin Sivinxi', role: 'Astrologa Mezza-Elfa', status: 'Alleato', desc: 'Proprietaria del negozio Meraviglie di Wrin a Otari. Ha chiesto al gruppo di indagare su Gauntlight.' },
+                { id: 'demo2', name: 'Belcorra Haruvex', role: 'Stregona Fantasma', status: 'Nemico', desc: 'Antica costruttrice del Faro di Gauntlight.' }
+            ];
+            wikiData.locations = [
+                { id: 'demo3', name: 'Otari', role: 'Cittadina Costiera', status: 'Sicuro', desc: 'Fiorente cittadina famosa per il legname e la pesca.' },
+                { id: 'demo4', name: 'Faro di Gauntlight', role: 'Rovine / Dungeon', status: 'Pericoloso', desc: 'Antico faro immerso nella palude nebbiosa.' }
+            ];
+            wikiData.quests = [
+                { id: 'demo5', name: 'Il Mistero di Gauntlight', role: 'Mandante: Wrin Sivinxi', status: 'Attiva', desc: 'Scoprire perché il faro emette una sinistra luce azzurra.' }
+            ];
+            wikiData.loot = [
+                { id: 'demo6', name: 'Chiave d\'Argento di Haruvex', role: 'Oggetto Chiave', status: 'In possesso', desc: 'Trovata nei sotterranei del faro.' }
+            ];
+            saveLocalFallback();
+            showToast("Campagna di esempio caricata!", "success");
+        }
+
+        // Avvio immediato
+        initApp();
+    </script>
+</body>
+</html>

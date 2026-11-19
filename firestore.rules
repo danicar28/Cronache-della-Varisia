@@ -1,0 +1,237 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isCampaignOwner(campaignId) {
+      return isVerified() &&
+        exists(/databases/$(database)/documents/campaigns/$(campaignId)) &&
+        get(/databases/$(database)/documents/campaigns/$(campaignId)).data.ownerId == request.auth.uid;
+    }
+
+    function isCampaignMember(campaignId) {
+      return isVerified() &&
+        exists(/databases/$(database)/documents/campaigns/$(campaignId)) &&
+        exists(/databases/$(database)/documents/campaigns/$(campaignId)/members/$(request.auth.uid));
+    }
+
+    function isValidUidList(listVal) {
+      return listVal is list &&
+        listVal.size() >= 1 &&
+        listVal.size() <= 12 &&
+        listVal[0] is string &&
+        listVal[0].size() <= 128;
+    }
+
+    function isValidCampaign(data) {
+      return data.keys().hasAll(['name', 'system', 'diaryText', 'ownerId', 'inviteCode', 'memberUids', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['name', 'system', 'diaryText', 'driveFileId', 'driveFileName', 'driveSyncedAt', 'ownerId', 'inviteCode', 'memberUids', 'createdAt', 'updatedAt']) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.system is string && data.system.size() >= 1 && data.system.size() <= 60 &&
+        data.diaryText is string && data.diaryText.size() <= 800000 &&
+        (!('driveFileId' in data) || data.driveFileId == null || isValidId(data.driveFileId)) &&
+        (!('driveFileName' in data) || data.driveFileName == null || (data.driveFileName is string && data.driveFileName.size() <= 200)) &&
+        (!('driveSyncedAt' in data) || data.driveSyncedAt == null || data.driveSyncedAt is timestamp) &&
+        isValidId(data.ownerId) &&
+        data.inviteCode is string && data.inviteCode.size() >= 6 && data.inviteCode.size() <= 24 && data.inviteCode.matches('^[A-Z0-9\\-]+$') &&
+        isValidUidList(data.memberUids) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidCampaignInvite(data) {
+      return data.keys().hasAll(['campaignId', 'campaignName', 'ownerId', 'createdAt']) &&
+        data.keys().hasOnly(['campaignId', 'campaignName', 'ownerId', 'createdAt']) &&
+        isValidId(data.campaignId) &&
+        data.campaignName is string && data.campaignName.size() >= 1 && data.campaignName.size() <= 120 &&
+        isValidId(data.ownerId) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidCampaignMember(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'role', 'inviteCode', 'campaignOwnerId', 'joinedAt']) &&
+        data.keys().hasOnly(['uid', 'displayName', 'role', 'inviteCode', 'campaignOwnerId', 'joinedAt']) &&
+        isValidId(data.uid) &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+        data.role in ['gm', 'player'] &&
+        data.inviteCode is string && data.inviteCode.size() >= 6 && data.inviteCode.size() <= 24 && data.inviteCode.matches('^[A-Z0-9\\-]+$') &&
+        isValidId(data.campaignOwnerId) &&
+        data.joinedAt is timestamp;
+    }
+
+    function isValidUserMembership(data) {
+      return data.keys().hasAll(['campaignId', 'campaignName', 'role', 'joinedAt']) &&
+        data.keys().hasOnly(['campaignId', 'campaignName', 'role', 'joinedAt']) &&
+        isValidId(data.campaignId) &&
+        data.campaignName is string && data.campaignName.size() >= 1 && data.campaignName.size() <= 120 &&
+        data.role in ['gm', 'player'] &&
+        data.joinedAt is timestamp;
+    }
+
+    function isValidWikiEntry(data) {
+      return data.keys().hasAll(['category', 'name', 'role', 'status', 'desc', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['category', 'name', 'role', 'status', 'desc', 'order', 'image', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.category in ['npcs', 'locations', 'quests', 'loot', 'timeline', 'party'] &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 140 &&
+        data.role is string && data.role.size() <= 140 &&
+        data.status is string && data.status.size() <= 60 &&
+        data.desc is string && data.desc.size() <= 8000 &&
+        (!('order' in data) || data.order == null || (data.order is int && data.order >= 0 && data.order <= 100000)) &&
+        (!('image' in data) || data.image == null || (data.image is string && data.image.size() <= 250000)) &&
+        isValidId(data.createdBy) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidGalleryImage(data) {
+      return data.keys().hasAll(['title', 'dataUrl', 'createdBy', 'createdAt']) &&
+        data.keys().hasOnly(['title', 'dataUrl', 'createdBy', 'createdAt']) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        data.dataUrl is string && data.dataUrl.size() >= 10 && data.dataUrl.size() <= 450000 &&
+        isValidId(data.createdBy) &&
+        data.createdAt is timestamp;
+    }
+
+    match /campaignInvites/{inviteCode} {
+      allow get: if isVerified() && isValidId(inviteCode);
+      allow list: if false;
+      allow create: if isVerified() &&
+        isValidId(inviteCode) &&
+        isValidCampaignInvite(incoming()) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        existsAfter(/databases/$(database)/documents/campaigns/$(incoming().campaignId));
+      allow update: if false;
+      allow delete: if isVerified() && isValidId(inviteCode) && existing().ownerId == request.auth.uid;
+    }
+
+    match /users/{userId}/memberships/{campaignId} {
+      allow get: if isVerified() && isValidId(userId) && isValidId(campaignId) && request.auth.uid == userId;
+      allow list: if isVerified() && isValidId(userId) && request.auth.uid == userId;
+      allow create: if isVerified() &&
+        isValidId(userId) &&
+        isValidId(campaignId) &&
+        request.auth.uid == userId &&
+        isValidUserMembership(incoming()) &&
+        incoming().campaignId == campaignId &&
+        incoming().joinedAt == request.time &&
+        existsAfter(/databases/$(database)/documents/campaigns/$(campaignId)/members/$(userId));
+      allow update: if isVerified() &&
+        isValidId(userId) &&
+        isValidId(campaignId) &&
+        request.auth.uid == userId &&
+        isValidUserMembership(incoming()) &&
+        incoming().campaignId == existing().campaignId &&
+        incoming().role == existing().role &&
+        incoming().joinedAt == existing().joinedAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['campaignName']);
+      allow delete: if isVerified() && isValidId(userId) && isValidId(campaignId) && request.auth.uid == userId;
+    }
+
+    match /campaigns/{campaignId} {
+      allow get: if isVerified() && isValidId(campaignId) && ((resource != null && existing().ownerId == request.auth.uid) || isCampaignMember(campaignId));
+      allow list: if isVerified() && request.auth.uid in resource.data.memberUids;
+      allow create: if isVerified() &&
+        isValidId(campaignId) &&
+        isValidCampaign(incoming()) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().memberUids.size() == 1 &&
+        incoming().memberUids[0] == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerified() &&
+        isValidId(campaignId) &&
+        isValidCampaign(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          (existing().ownerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'system', 'diaryText', 'driveFileId', 'driveFileName', 'driveSyncedAt', 'inviteCode', 'memberUids', 'updatedAt'])) ||
+          (isCampaignMember(campaignId) && incoming().diff(existing()).affectedKeys().hasOnly(['diaryText', 'driveFileId', 'driveFileName', 'driveSyncedAt', 'updatedAt'])) ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt']) &&
+            incoming().memberUids.hasAll(existing().memberUids) &&
+            request.auth.uid in incoming().memberUids &&
+            existsAfter(/databases/$(database)/documents/campaigns/$(campaignId)/members/$(request.auth.uid))
+          )
+        );
+      allow delete: if isVerified() && isValidId(campaignId) && existing().ownerId == request.auth.uid;
+
+      match /members/{memberUid} {
+        allow get: if isVerified() && isValidId(campaignId) && isValidId(memberUid) && (request.auth.uid == memberUid || isCampaignOwner(campaignId) || isCampaignMember(campaignId));
+        allow list: if isVerified() && (resource.data.uid == request.auth.uid || resource.data.campaignOwnerId == request.auth.uid);
+        allow create: if isVerified() &&
+          isValidId(campaignId) &&
+          isValidId(memberUid) &&
+          memberUid == request.auth.uid &&
+          isValidCampaignMember(incoming()) &&
+          incoming().uid == request.auth.uid &&
+          incoming().joinedAt == request.time &&
+          existsAfter(/databases/$(database)/documents/campaigns/$(campaignId)) &&
+          (
+            (getAfter(/databases/$(database)/documents/campaigns/$(campaignId)).data.ownerId == request.auth.uid && incoming().role == 'gm' && incoming().campaignOwnerId == request.auth.uid) ||
+            (getAfter(/databases/$(database)/documents/campaigns/$(campaignId)).data.inviteCode == incoming().inviteCode && incoming().role == 'player' && incoming().campaignOwnerId == getAfter(/databases/$(database)/documents/campaigns/$(campaignId)).data.ownerId)
+          );
+        allow update: if false;
+        allow delete: if isVerified() && isValidId(campaignId) && isValidId(memberUid) && (request.auth.uid == memberUid || isCampaignOwner(campaignId));
+      }
+
+      match /entries/{entryId} {
+        allow get, list: if isVerified() && isValidId(campaignId) && isCampaignMember(campaignId);
+        allow create: if isVerified() &&
+          isValidId(campaignId) &&
+          isValidId(entryId) &&
+          isValidWikiEntry(incoming()) &&
+          isCampaignMember(campaignId) &&
+          incoming().createdBy == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time;
+        allow update: if isVerified() &&
+          isValidId(campaignId) &&
+          isValidId(entryId) &&
+          isValidWikiEntry(incoming()) &&
+          isCampaignMember(campaignId) &&
+          incoming().createdBy == existing().createdBy &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['category', 'name', 'role', 'status', 'desc', 'order', 'image', 'updatedAt']);
+        allow delete: if isVerified() && isValidId(campaignId) && isValidId(entryId) && isCampaignMember(campaignId);
+      }
+
+      match /gallery/{imageId} {
+        allow get, list: if isVerified() && isValidId(campaignId) && isCampaignMember(campaignId);
+        allow create: if isVerified() &&
+          isValidId(campaignId) &&
+          isValidId(imageId) &&
+          isValidGalleryImage(incoming()) &&
+          isCampaignMember(campaignId) &&
+          incoming().createdBy == request.auth.uid &&
+          incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if isVerified() && isValidId(campaignId) && isValidId(imageId) && isCampaignMember(campaignId);
+      }
+    }
+  }
+}

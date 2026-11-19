@@ -1,0 +1,6 @@
+{
+  "name": "Cronache di Golarion",
+  "description": "Archivio intelligente di campagna, wiki collaborativa e Bardo AI per gruppi di Pathfinder 2E.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

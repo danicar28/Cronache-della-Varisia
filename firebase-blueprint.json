@@ -1,0 +1,292 @@
+{
+  "entities": {
+    "Campaign": {
+      "title": "Campaign",
+      "description": "Campagna di Pathfinder 2E condivisa tra i membri del gruppo.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Nome della campagna",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "system": {
+          "type": "string",
+          "description": "Sistema di gioco (es. Pathfinder 2E)",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "diaryText": {
+          "type": "string",
+          "description": "Testo integrale del diario delle sessioni",
+          "maxLength": 800000
+        },
+        "driveFileId": {
+          "type": "string",
+          "description": "ID del documento Google Drive collegato",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "driveFileName": {
+          "type": "string",
+          "description": "Nome del file Google Drive collegato",
+          "maxLength": 200
+        },
+        "driveSyncedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp ultima sincronizzazione da Google Drive"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID del Game Master creatore",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "inviteCode": {
+          "type": "string",
+          "description": "Codice invito alfanumerico per i giocatori",
+          "pattern": "^[A-Z0-9\\-]+$",
+          "minLength": 6,
+          "maxLength": 24
+        },
+        "memberUids": {
+          "type": "array",
+          "description": "Lista limitata (max 12) degli UID dei membri del gruppo"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp creazione"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp ultimo aggiornamento"
+        }
+      },
+      "required": ["name", "system", "diaryText", "ownerId", "inviteCode", "memberUids", "createdAt", "updatedAt"]
+    },
+    "CampaignInvite": {
+      "title": "CampaignInvite",
+      "description": "Riferimento protetto da codice segreto per unirsi a una campagna.",
+      "type": "object",
+      "properties": {
+        "campaignId": {
+          "type": "string",
+          "description": "ID della campagna",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "campaignName": {
+          "type": "string",
+          "description": "Nome della campagna",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID del proprietario",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp creazione"
+        }
+      },
+      "required": ["campaignId", "campaignName", "ownerId", "createdAt"]
+    },
+    "CampaignMember": {
+      "title": "CampaignMember",
+      "description": "Membro registrato in una campagna condivisa.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "UID utente",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Nome visualizzato del giocatore o GM",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "role": {
+          "type": "string",
+          "enum": ["gm", "player"],
+          "description": "Ruolo nella campagna"
+        },
+        "inviteCode": {
+          "type": "string",
+          "description": "Codice invito fornito al momento dell'ingresso",
+          "pattern": "^[A-Z0-9\\-]+$",
+          "minLength": 6,
+          "maxLength": 24
+        },
+        "campaignOwnerId": {
+          "type": "string",
+          "description": "UID del proprietario della campagna",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp ingresso nella campagna"
+        }
+      },
+      "required": ["uid", "displayName", "role", "inviteCode", "campaignOwnerId", "joinedAt"]
+    },
+    "UserMembership": {
+      "title": "UserMembership",
+      "description": "Indice privato delle campagne a cui l'utente partecipa.",
+      "type": "object",
+      "properties": {
+        "campaignId": {
+          "type": "string",
+          "description": "ID della campagna",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "campaignName": {
+          "type": "string",
+          "description": "Nome della campagna",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "role": {
+          "type": "string",
+          "enum": ["gm", "player"],
+          "description": "Ruolo nella campagna"
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp ingresso"
+        }
+      },
+      "required": ["campaignId", "campaignName", "role", "joinedAt"]
+    },
+    "WikiEntry": {
+      "title": "WikiEntry",
+      "description": "Scheda del compendio (PNG, Luogo, Missione, Tesoro, Timeline o Gruppo).",
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": ["npcs", "locations", "quests", "loot", "timeline", "party"],
+          "description": "Sezione della wiki"
+        },
+        "name": {
+          "type": "string",
+          "description": "Nome o titolo della scheda",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "role": {
+          "type": "string",
+          "description": "Ruolo, regione, mandante, livello o data/sessione",
+          "maxLength": 140
+        },
+        "status": {
+          "type": "string",
+          "description": "Stato o disposizione della scheda",
+          "maxLength": 60
+        },
+        "desc": {
+          "type": "string",
+          "description": "Descrizione e note della scheda",
+          "maxLength": 8000
+        },
+        "order": {
+          "type": "integer",
+          "description": "Ordine cronologico per la timeline"
+        },
+        "image": {
+          "type": "string",
+          "description": "Immagine compressa opzionale in Data URL",
+          "maxLength": 250000
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "UID dell'autore",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp creazione"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp aggiornamento"
+        }
+      },
+      "required": ["category", "name", "role", "status", "desc", "createdBy", "createdAt", "updatedAt"]
+    },
+    "GalleryImage": {
+      "title": "GalleryImage",
+      "description": "Immagine o mappa salvata nella galleria della campagna.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Titolo dell'immagine o mappa",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "dataUrl": {
+          "type": "string",
+          "description": "Immagine compressa in Data URL",
+          "minLength": 10,
+          "maxLength": 450000
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "UID dell'autore",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp creazione"
+        }
+      },
+      "required": ["title", "dataUrl", "createdBy", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/campaignInvites/{inviteCode}": {
+      "schema": { "$ref": "#/entities/CampaignInvite" },
+      "description": "Codici invito per permettere ai giocatori di unirsi alle campagne."
+    },
+    "/campaigns/{campaignId}": {
+      "schema": { "$ref": "#/entities/Campaign" },
+      "description": "Documenti principali delle campagne con diario, collegamento Google Drive e lista membri limitata."
+    },
+    "/campaigns/{campaignId}/members/{memberUid}": {
+      "schema": { "$ref": "#/entities/CampaignMember" },
+      "description": "Membri autorizzati di ciascuna campagna."
+    },
+    "/campaigns/{campaignId}/entries/{entryId}": {
+      "schema": { "$ref": "#/entities/WikiEntry" },
+      "description": "Schede della wiki di campagna (PNG, Luoghi, Missioni, Tesori, Timeline, Gruppo)."
+    },
+    "/campaigns/{campaignId}/gallery/{imageId}": {
+      "schema": { "$ref": "#/entities/GalleryImage" },
+      "description": "Galleria immagini e mappe della campagna."
+    },
+    "/users/{userId}/memberships/{campaignId}": {
+      "schema": { "$ref": "#/entities/UserMembership" },
+      "description": "Indice delle campagne a cui l'utente partecipa."
+    }
+  }
+}
